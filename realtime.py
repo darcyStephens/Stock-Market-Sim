@@ -16,7 +16,6 @@ Money = 100
 shares_owned = 0
 holdings_value = 0
 
-
 stock_price = 100
 price_history = [stock_price]
 
@@ -56,15 +55,18 @@ def handle_buy():
         amount = int(input.get())
         total_cost = amount * price_history[-1]
         if total_cost > Money:
-            print("Insufficient funds! Transaction denied.")
+            Insufficient = "Insufficient funds! Transaction denied."
+            open_popup(Insufficient)
             return
+
         Money -= total_cost
         shares_owned += amount
         print(f"Bought {amount} shares at ${price_history[-1]} each")
         update_labels()
         value_calc_update()
     except ValueError:
-        print("Enter a valid number of shares")
+        invalid = "Enter a valid number of shares."
+        open_popup(invalid)
     input.delete(0, tk.END)
 
 
@@ -74,7 +76,8 @@ def handle_sell():
     try:
         amount = int(input.get())
         if amount <= 0:
-            print("Enter a positive number of shares to sell.")
+            negative = "Enter a positive number of shares to sell."
+            open_popup(negative)
             return
         if shares_owned >= amount:
             total_earnings = amount * price_history[-1]
@@ -84,9 +87,12 @@ def handle_sell():
             update_labels()
             value_calc_update()
         else:
-            print("You are trying to sell more shares than you own.")
+            over = "You are trying to sell more shares than you own."
+            open_popup(over)
     except ValueError:
-        print("Enter a valid number of shares.")
+        invalid = "Enter a valid number of shares."
+        open_popup(invalid)
+        
     input.delete(0, tk.END)
 
 
@@ -98,6 +104,20 @@ def value_calc_update():
     global holdings_value, shares_owned
     holdings_value = price_history[-1] * shares_owned
     window.after(0, lambda: holding_label.config(text=f"Holdings value: ${holdings_value:.2f}"))
+
+def open_popup(display_text):
+    top= tk.Toplevel(window)
+    top.geometry("400x200")
+    top.title("Warning Window")
+    Warning = tk.Label(top, text=display_text, wraplength=300, justify="center")
+    Warning.pack()
+    # Add a close button
+    close_button = tk.Button(top, text="OK", command=top.destroy)
+    close_button.pack(pady=10)
+    
+    
+
+
 
 
 buy = tk.Button(window, text="Buy", width=25, height=5, bg="green", command=handle_buy)
