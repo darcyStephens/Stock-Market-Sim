@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import random
 import matplotlib.pyplot as plt
@@ -12,180 +13,149 @@ bull_days = 0
 bear_days = 0
 bull_days_count = 0
 bear_days_count = 0
-Money = 100
+Money = 200
 shares_owned = 0
 holdings_value = 0
-
 stock_price = 100
 price_history = [stock_price]
 
 # Tkinter GUI setup
 window = tk.Tk()
 window.title("Stock Market Simulator")
+window.geometry("800x600")
 
-# Add a header label
-header = tk.Label(window, text="Stock Market Simulator")
+# Styles
+style = ttk.Style(window)
+style.theme_use("clam")
+style.configure("TLabel", font=("Arial", 12))
+style.configure("TButton", font=("Arial", 10, "bold"))
+style.configure("Header.TLabel", font=("Arial", 16, "bold"))
+
+# Frames
+header_frame = ttk.Frame(window)
+header_frame.pack(fill=tk.X, pady=10)
+
+left_frame = ttk.Frame(window, padding=10)
+left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+right_frame = ttk.Frame(window, padding=10)
+right_frame.pack(side=tk.RIGHT, fill=tk.Y)
+
+# Header
+header = ttk.Label(header_frame, text="Stock Market Simulator", style="Header.TLabel")
 header.pack()
 
-# Setting up frames
-price_frame = tk.Frame(master=window, width=400, height=400, bg="white")
-price_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+# Left frame (Graph)
+fig = Figure(figsize=(5, 4), dpi=100)
+ax = fig.add_subplot(111)
+canvas = FigureCanvasTkAgg(fig, master=left_frame)
+canvas_widget = canvas.get_tk_widget()
+canvas_widget.pack(fill=tk.BOTH, expand=True)
 
-# Input and button setup
-input_label = tk.Label(window, text="Number of shares")
-input_label.pack()
-input = tk.Entry(window)
-input.pack()
+# Right frame (Controls)
+info_frame = ttk.Frame(right_frame)
+info_frame.pack(fill=tk.X, pady=10)
 
-#displaying money and shares owned
-money_label = tk.Label(window, text=f"Capital: ${Money:.2f}")
-money_label.pack()
+# Labels for money, shares, and holdings value
+money_label = ttk.Label(info_frame, text=f"Capital: ${Money:.2f}")
+money_label.pack(anchor=tk.W)
 
-shares_label = tk.Label(window, text=f"Shares Owned: ${shares_owned}")
-shares_label.pack()
+shares_label = ttk.Label(info_frame, text=f"Shares Owned: {shares_owned}")
+shares_label.pack(anchor=tk.W)
 
-holding_label = tk.Label(window, text=f"Holdings value: ${holdings_value:.2f}")
-holding_label.pack()
+holding_label = ttk.Label(info_frame, text=f"Holdings Value: ${holdings_value:.2f}")
+holding_label.pack(anchor=tk.W)
 
+price_label = ttk.Label(info_frame, text=f"Current Price: ${price_history[-1]:.2f}")
+price_label.pack(anchor=tk.W)
 
-# Handle Buy button click
-def handle_buy():
-    global Money, shares_owned
-    try:
-        amount = int(input.get())
-        total_cost = amount * price_history[-1]
-        if total_cost > Money:
-            Insufficient = "Insufficient funds! Transaction denied."
-            open_popup(Insufficient)
-            return
+# Input and buttons
+input_label = ttk.Label(right_frame, text="Number of Shares:")
+input_label.pack(pady=5)
 
-        Money -= total_cost
-        shares_owned += amount
-        print(f"Bought {amount} shares at ${price_history[-1]} each")
-        update_labels()
-        value_calc_update()
-    except ValueError:
-        invalid = "Enter a valid number of shares."
-        open_popup(invalid)
-    input.delete(0, tk.END)
+input = ttk.Entry(right_frame)
+input.pack(pady=5)
 
+button_frame = ttk.Frame(right_frame)
+button_frame.pack(pady=10)
 
-# Handle Sell button click
-def handle_sell():
+buy_button = ttk.Button(button_frame, text="Buy", command=lambda: handle_transaction("buy"))
+buy_button.grid(row=0, column=0, padx=5)
+
+sell_button = ttk.Button(button_frame, text="Sell", command=lambda: handle_transaction("sell"))
+sell_button.grid(row=0, column=1, padx=5)
+
+# Popup for warnings
+def open_popup(message):
+    popup = tk.Toplevel(window)
+    popup.title("Warning")
+    ttk.Label(popup, text=message, wraplength=250).pack(pady=20)
+    ttk.Button(popup, text="OK", command=popup.destroy).pack(pady=10)
+
+# Buy/Sell transaction handler
+def handle_transaction(action):
     global Money, shares_owned
     try:
         amount = int(input.get())
         if amount <= 0:
-            negative = "Enter a positive number of shares to sell."
-            open_popup(negative)
+            open_popup("Enter a positive number of shares.")
             return
-        if shares_owned >= amount:
+
+        if action == "buy":
+            total_cost = amount * price_history[-1]
+            if total_cost > Money:
+                open_popup("Insufficient funds!")
+                return
+            Money -= total_cost
+            shares_owned += amount
+        elif action == "sell":
+            if shares_owned < amount:
+                open_popup("You don't own enough shares.")
+                return
             total_earnings = amount * price_history[-1]
             Money += total_earnings
             shares_owned -= amount
-            print(f"Sold {amount} shares at ${price_history[-1]} each")
-            update_labels()
-            value_calc_update()
-        else:
-            over = "You are trying to sell more shares than you own."
-            open_popup(over)
+
+        update_ui()
     except ValueError:
-        invalid = "Enter a valid number of shares."
-        open_popup(invalid)
-        
-    input.delete(0, tk.END)
+        open_popup("Please enter a valid number.")
+    finally:
+        # Clear the input field
+        input.delete(0, tk.END)
 
-
-def update_labels():
+# Update UI
+def update_ui():
+    global holdings_value
+    holdings_value = shares_owned * price_history[-1]
     money_label.config(text=f"Capital: ${Money:.2f}")
     shares_label.config(text=f"Shares Owned: {shares_owned}")
-    
-def value_calc_update():
-    global holdings_value, shares_owned
-    holdings_value = price_history[-1] * shares_owned
-    window.after(0, lambda: holding_label.config(text=f"Holdings value: ${holdings_value:.2f}"))
+    holding_label.config(text=f"Holdings Value: ${holdings_value:.2f}")
+    price_label.config(text=f"Current Price: ${price_history[-1]:.2f}")
 
-def open_popup(display_text):
-    top= tk.Toplevel(window)
-    top.geometry("400x200")
-    top.title("Warning Window")
-    Warning = tk.Label(top, text=display_text, wraplength=300, justify="center")
-    Warning.pack()
-    # Add a close button
-    close_button = tk.Button(top, text="OK", command=top.destroy)
-    close_button.pack(pady=10)
-    
-    
-
-
-
-
-buy = tk.Button(window, text="Buy", width=25, height=5, bg="green", command=handle_buy)
-buy.pack()
-sell = tk.Button(window, text="Sell", width=25, height=5, bg="red", command=handle_sell)
-sell.pack()
-
-# Matplotlib setup
-fig = Figure(figsize=(5, 4), dpi=100)
-ax = fig.add_subplot(111)
-canvas = FigureCanvasTkAgg(fig, master=price_frame)
-canvas_widget = canvas.get_tk_widget()
-canvas_widget.pack(fill=tk.BOTH, expand=True)
-
-# Simulation function
+# Stock price simulation
 def simulate_stock_prices():
-    global days, bull_days, bear_days, bull_days_count, bear_days_count, stock_price, price_history, Money, shares_owned
-
+    global days, bull_days, bear_days, bull_days_count, bear_days_count, stock_price, price_history
     while stock_price > 0 and days <= 30:
-        # Simulate stock price fluctuation
-        fluctuation = random.randrange(-10, 10)
-        factor = random.random()
-        stock_price += fluctuation * factor
-
-        # Check price movement
-        if stock_price > price_history[-1]:
-            bull_days += 1
-            bull_days_count += 1
-        else:
-            bear_days += 1
-            bear_days_count += 1
-
-        # Handle bull and bear market adjustments
-        if bull_days >= 3 or bear_days >= 4:
-            stock_price *= 1.05
-            bull_days *= 0.2
-        if bear_days >= 3 or bull_days >= 4:
-            stock_price *= 0.95
-            bear_days *= 0.2
-
-        # Ensure stock price is positive
-        stock_price = max(stock_price, 0)
-        stock_price = float("{:.2f}".format(stock_price))
+        fluctuation = random.uniform(-5, 5)
+        stock_price = max(stock_price + fluctuation, 0)
         price_history.append(stock_price)
 
-        # Update the plot
         ax.clear()
         ax.plot(price_history, marker="o", label="Stock Price")
-        ax.set_xlabel("Day")
-        ax.set_ylabel("Stock Price")
         ax.set_title("Stock Price Simulation")
+        ax.set_xlabel("Day")
+        ax.set_ylabel("Price ($)")
         ax.legend()
         ax.grid(True)
         canvas.draw()
 
-        # Increment day and delay
         days += 1
-        value_calc_update()
+        update_ui()
         time.sleep(1)
 
-    print("Simulation ended.")
-    print("Price history:", price_history)
-    print("Bull days:", bull_days_count)
-    print("Bear days:", bear_days_count)
-
-# Run the simulation in a separate thread
+# Start simulation thread
 simulation_thread = threading.Thread(target=simulate_stock_prices, daemon=True)
 simulation_thread.start()
 
-# Run the Tkinter main loop
+# Run the Tkinter event loop
 window.mainloop()
